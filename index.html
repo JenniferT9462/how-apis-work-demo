@@ -396,7 +396,8 @@
       <div class="docs fade" id="docs">
         <strong>📖 The docs say:</strong><br>
         <code>GET /v1/forecast</code><br>
-        latitude, longitude, current
+        latitude, longitude, current,<br>
+        temperature_unit
       </div>
     </div>
   </div>
@@ -410,21 +411,21 @@
   </div>
 
   <script>
-    // The real request from tonight's Moodle Part 2
-    const goodUrl = "https://api.open-meteo.com/v1/forecast?latitude=30.27&longitude=-97.74&current=temperature_2m,wind_speed_10m";
-    const badUrl = "https://api.open-meteo.com/v1/forecast?latitude=999&longitude=-97.74&current=temperature_2m,wind_speed_10m";
+    // Tonight's Moodle Part 2 request, plus temperature_unit=fahrenheit
+    const goodUrl = "https://api.open-meteo.com/v1/forecast?latitude=30.27&longitude=-97.74&current=temperature_2m,wind_speed_10m&temperature_unit=fahrenheit";
+    const badUrl = "https://api.open-meteo.com/v1/forecast?latitude=999&longitude=-97.74&current=temperature_2m,wind_speed_10m&temperature_unit=fahrenheit";
 
     // A real response, saved Nov 16, 2026. Swapped for a live one if the fetch works.
     let goodBody = {
       latitude: 30.269146,
       longitude: -97.75338,
-      generationtime_ms: 0.045,
+      generationtime_ms: 0.049,
       utc_offset_seconds: 0,
       timezone: "GMT",
       timezone_abbreviation: "GMT",
       elevation: 164.0,
-      current_units: { time: "iso8601", interval: "seconds", temperature_2m: "°C", wind_speed_10m: "km/h" },
-      current: { time: "2026-11-16T16:45", interval: 900, temperature_2m: 10.8, wind_speed_10m: 10.4 }
+      current_units: { time: "iso8601", interval: "seconds", temperature_2m: "°F", wind_speed_10m: "km/h" },
+      current: { time: "2026-11-16T17:15", interval: 900, temperature_2m: 53.0, wind_speed_10m: 11.6 }
     };
     let live = false;
 
