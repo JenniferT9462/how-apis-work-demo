@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How an API Answers</title>
+  <style>
+    :root {
+      --bg: #fffcf9;
+      --ink: #1e293b;
+      --muted: #64748b;
+      --blue: #4e89bd;
+      --blue-tint: #eef5fb;
+      --red: #e06c75;
+      --green: #3f8f5a;
+      --gold: #d79b2b;
+      --line: #e2dcd3;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-family: Inter, system-ui, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    h1 {
+      margin: 20px 24px 0;
+      font-size: 1.6rem;
+      text-align: center;
+    }
+
+    code, pre {
+      font-family: Consolas, monospace;
+    }
+
+    .stage {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 2.2fr 1fr;
+      align-items: center;
+      gap: 16px;
+      max-width: 1250px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 16px 24px;
+    }
+
+    .machine {
+      border: 3px solid var(--ink);
+      border-radius: 16px;
+      background: white;
+      padding: 14px;
+      min-height: 320px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      text-align: center;
+    }
+
+    .machine .label {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .machine .sub {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .emoji {
+      font-size: 2.6rem;
+    }
+
+    .fade {
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+
+    .fade.show {
+      opacity: 1;
+    }
+
+    /* Left: your program */
+    .screen {
+      width: 100%;
+      flex: 1;
+      border: 2px dashed var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.95rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .screen .big {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--blue);
+    }
+
+    .screen code {
+      background: var(--blue-tint);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      word-break: break-all;
+    }
+
+    .screen .oops {
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    /* Right: the server and its two doors */
+    .door {
+      width: 100%;
+      border: 2px solid var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 0.9rem;
+      transition: border-color 0.4s, background 0.4s, opacity 0.4s;
+    }
+
+    .door strong {
+      display: block;
+      font-size: 1rem;
+    }
+
+    .door.lit {
+      border-color: var(--blue);
+      background: var(--blue-tint);
+    }
+
+    .door.dim {
+      opacity: 0.35;
+    }
+
+    .docs {
+      width: 100%;
+      border-left: 4px solid var(--gold);
+      background: #fdf6e9;
+      padding: 6px 8px;
+      text-align: left;
+      font-size: 0.8rem;
+    }
+
+    /* Middle: request + response cards */
+    .middle {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card {
+      border: 2px solid var(--blue);
+      border-radius: 12px;
+      background: white;
+      padding: 10px 14px;
+    }
+
+    .card h2 {
+      margin: 0 0 6px;
+      font-size: 1.05rem;
+      color: var(--blue);
+    }
+
+    .card.response h2 {
+      text-align: right;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 82px 1fr;
+      gap: 8px;
+      align-items: start;
+      padding: 4px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .row .name {
+      font-weight: 700;
+    }
+
+    .row .val {
+      font-family: Consolas, monospace;
+      font-size: 0.88rem;
+      word-break: break-all;
+    }
+
+    .row.now {
+      background: #fff7d6;
+      border-radius: 6px;
+    }
+
+    .u-base { color: var(--muted); }
+    .u-path { color: var(--blue); font-weight: 700; }
+    .u-q { color: var(--green); font-weight: 700; }
+
+    .ok { color: var(--green); font-weight: 700; }
+    .bad { color: var(--red); font-weight: 700; }
+
+    .card pre {
+      margin: 0;
+      max-height: 150px;
+      overflow: auto;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .mark {
+      background: var(--gold);
+      color: var(--ink);
+      padding: 0 3px;
+      border-radius: 3px;
+    }
+
+    .card.response.error {
+      border-color: var(--red);
+    }
+
+    /* The wire with a traveling envelope */
+    .wire {
+      position: relative;
+      height: 34px;
+    }
+
+    .wire::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      border-top: 3px dotted var(--muted);
+    }
+
+    .wire .tag {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 60%;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .envelope {
+      position: absolute;
+      top: -2px;
+      left: 0;
+      font-size: 1.8rem;
+      opacity: 0;
+    }
+
+    .envelope.move {
+      transition: left 1.2s ease-in-out;
+    }
+
+    /* Caption + controls */
+    .caption {
+      max-width: 950px;
+      margin: 0 auto 8px;
+      padding: 0 24px;
+      min-height: 4.2em;
+      font-size: 1.4rem;
+      text-align: center;
+    }
+
+    .caption code {
+      background: var(--blue-tint);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      padding: 0 24px 20px;
+    }
+
+    .controls button {
+      padding: 10px 24px;
+      font: inherit;
+      font-weight: 700;
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      background: white;
+      cursor: pointer;
+    }
+
+    .controls #next {
+      background: var(--ink);
+      color: white;
+    }
+
+    .count {
+      color: var(--muted);
+    }
+
+    .source {
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-align: right;
+    }
+
+    @media (max-width: 800px) {
+      .stage {
+        grid-template-columns: 1fr;
+      }
+
+      .machine {
+        min-height: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>How an API answers your program</h1>
+
+  <div class="stage">
+    <!-- LEFT: your program -->
+    <div class="machine">
+      <div class="emoji">💻</div>
+      <div class="label">Your program</div>
+      <div class="sub" id="you-sub">Your browser</div>
+      <div class="screen" id="screen"></div>
+    </div>
+
+    <!-- MIDDLE: request and response -->
+    <div class="middle">
+      <div class="card request">
+        <h2>You send a request →</h2>
+        <div class="row fade" id="r-method">
+          <span class="name">Method</span>
+          <span class="val"><strong>GET</strong> &nbsp;(give me something)</span>
+        </div>
+        <div class="row fade" id="r-url">
+          <span class="name">URL</span>
+          <span class="val" id="url"></span>
+        </div>
+        <div class="row fade" id="r-headers">
+          <span class="name">Headers</span>
+          <span class="val">Accept: */*<br>User-Agent: PostmanRuntime</span>
+        </div>
+      </div>
+
+      <div class="wire">
+        <span class="envelope" id="envelope">✉️</span>
+        <span class="tag">the internet</span>
+      </div>
+
+      <div class="card response" id="response">
+        <h2>← You get a response</h2>
+        <div class="row fade" id="s-status">
+          <span class="name">Status</span>
+          <span class="val" id="status"></span>
+        </div>
+        <div class="row fade" id="s-headers">
+          <span class="name">Headers</span>
+          <span class="val">Content-Type: application/json</span>
+        </div>
+        <div class="row fade" id="s-body">
+          <span class="name">Body</span>
+          <pre class="val" id="body"></pre>
+        </div>
+        <div class="source fade" id="source"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: the server -->
+    <div class="machine">
+      <div class="emoji">🗄️</div>
+      <div class="label">A server</div>
+      <div class="sub" id="server-sub">Open-Meteo, a computer somewhere else</div>
+      <div class="door" id="door-web">
+        <strong>🌐 Website</strong>
+        Pages for <em>people</em> to look at
+      </div>
+      <div class="door fade" id="door-api">
+        <strong>🔌 API</strong>
+        Data for <em>programs</em> to use
+      </div>
+      <div class="docs fade" id="docs">
+        <strong>📖 The docs say:</strong><br>
+        <code>GET /v1/forecast</code><br>
+        latitude, longitude, current
+      </div>
+    </div>
+  </div>
+
+  <p class="caption" id="caption"></p>
+
+  <div class="controls">
+    <button id="back" type="button">← Back</button>
+    <span class="count" id="count"></span>
+    <button id="next" type="button">Next →</button>
+  </div>
+
+  <script>
+    // The real request from tonight's Moodle Part 2
+    const goodUrl = "https://api.open-meteo.com/v1/forecast?latitude=30.27&longitude=-97.74&current=temperature_2m,wind_speed_10m";
+    const badUrl = "https://api.open-meteo.com/v1/forecast?latitude=999&longitude=-97.74&current=temperature_2m,wind_speed_10m";
+
+    // A real response, saved Nov 16, 2026. Swapped for a live one if the fetch works.
+    let goodBody = {
+      latitude: 30.269146,
+      longitude: -97.75338,
+      generationtime_ms: 0.045,
+      utc_offset_seconds: 0,
+      timezone: "GMT",
+      timezone_abbreviation: "GMT",
+      elevation: 164.0,
+      current_units: { time: "iso8601", interval: "seconds", temperature_2m: "°C", wind_speed_10m: "km/h" },
+      current: { time: "2026-11-16T16:45", interval: 900, temperature_2m: 10.8, wind_speed_10m: 10.4 }
+    };
+    let live = false;
+
+    // Real 400 response for latitude=999
+    const badBody = { reason: "Latitude must be in range of -90 to 90°. Given: 999.0.", error: true };
+
+    const steps = [
+      "Week 2: your browser asked a server for a <strong>page</strong>. It got back HTML, CSS and JS, made for <strong>people</strong> to look at.",
+      "Many servers have a second door: an <strong>API</strong>. It sends back <strong>data</strong>, made for <strong>programs</strong>. The <strong>docs</strong> say what to send.",
+      "Every request has a <strong>method</strong>. Tonight it's always <code>GET</code>: give me something.",
+      "The <strong>URL</strong> says where to send it: the <span class='u-base'>server</span>, the <span class='u-path'>endpoint</span>, and <span class='u-q'>query parameters</span> after the <code>?</code>, split by <code>&amp;</code>. The docs told us these names.",
+      "<strong>Headers</strong> are little notes about the request. Postman adds them for you.",
+      "Click <strong>Send</strong>. The request travels to the server, which reads the params and looks up the weather.",
+      "The answer comes back. First, the <strong>status</strong>: a number that says how it went. <span class='ok'>200 = OK.</span>",
+      "The response has <strong>headers</strong> too. <code>Content-Type</code> says what kind of data came back: <strong>JSON</strong>.",
+      "The <strong>body</strong> is the answer itself. Not a page, just data. Find <code>current</code>, then <code>temperature_2m</code>.",
+      "Your code walks into the body with dots, like any object, and puts <strong>one value</strong> on your page.",
+      "What if we send something wrong? <code>latitude=999</code> → <span class='bad'>400 Bad Request</span>. The status says it failed. The body says <strong>why</strong>.",
+      "Tonight you send this exact request twice: once with the <strong>Send</strong> button in Postman, once with <code>fetch</code> in your code."
+    ];
+
+    const el = (id) => document.getElementById(id);
+    let step = 0;
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function urlHtml(url) {
+      const q = url.indexOf("?");
+      const pathStart = url.indexOf("/", 8);
+      return "<span class='u-base'>" + escapeHtml(url.slice(0, pathStart)) + "</span>" +
+        "<span class='u-path'>" + escapeHtml(url.slice(pathStart, q)) + "</span>" +
+        "<span class='u-q'>" + escapeHtml(url.slice(q)) + "</span>";
+    }
+
+    function bodyHtml(data, highlight) {
+      let text = escapeHtml(JSON.stringify(data, null, 2));
+      if (highlight) {
+        // Only the number one matches (the units one is a string)
+        text = text.replace(/("temperature_2m": )(-?[\d.]+)/, "$1<span class='mark'>$2</span>");
+      }
+      return text;
+    }
+
+    function sendEnvelope(direction) {
+      const env = el("envelope");
+      const wire = env.parentElement;
+      const far = (wire.clientWidth - 36) + "px";
+      env.classList.remove("move");
+      env.style.opacity = 1;
+      env.style.left = direction === "right" ? "0px" : far;
+      void env.offsetWidth; // restart the trip
+      env.classList.add("move");
+      env.style.left = direction === "right" ? far : "0px";
+    }
+
+    function temp() {
+      return goodBody.current.temperature_2m + goodBody.current_units.temperature_2m;
+    }
+
+    function screenHtml() {
+      if (step === 0) {
+        return "<div class='big'>Sunday Book Club</div><div>A page made for people.</div>";
+      }
+      if (step === 10) {
+        return "<div class='oops'>⚠️ Something went wrong</div><code>data.reason</code><div>" +
+          escapeHtml(badBody.reason) + "</div>";
+      }
+      if (step === 11) {
+        return "<div><strong>Postman:</strong> the Send button</div>" +
+          "<div><strong>JavaScript:</strong></div><code>await fetch(url)</code><div>Same request. Same answer.</div>";
+      }
+      if (step === 9) {
+        return "<code>data.current.temperature_2m</code><div>↓</div>" +
+          "<div class='big'>🌤️ " + temp() + "</div><div>in Austin right now</div>";
+      }
+      if (step >= 6) {
+        return "<div>Got an answer!</div>";
+      }
+      if (step === 5) {
+        return "<div>Waiting for the answer…</div>";
+      }
+      return "<div>Building a request…</div>";
+    }
+
+    function show() {
+      const error = step === 10;
+
+      // Left
+      el("you-sub").textContent = step === 0 ? "Your browser" : "Postman, or your script.js";
+      el("screen").innerHTML = screenHtml();
+
+      // Right
+      el("door-web").classList.toggle("lit", step === 0);
+      el("door-web").classList.toggle("dim", step >= 1);
+      el("door-api").classList.toggle("show", step >= 1);
+      el("door-api").classList.toggle("lit", step >= 1);
+      el("docs").classList.toggle("show", step >= 1);
+      el("server-sub").textContent = step === 5 ? "Reading the params… looking up the weather…" : "Open-Meteo, a computer somewhere else";
+
+      // Request card
+      el("r-method").classList.toggle("show", step >= 2);
+      el("r-url").classList.toggle("show", step >= 3);
+      el("r-headers").classList.toggle("show", step >= 4);
+      el("url").innerHTML = urlHtml(error ? badUrl : goodUrl);
+      el("r-method").classList.toggle("now", step === 2);
+      el("r-url").classList.toggle("now", step === 3 || error);
+      el("r-headers").classList.toggle("now", step === 4);
+
+      // Response card
+      el("s-status").classList.toggle("show", step >= 6);
+      el("s-headers").classList.toggle("show", step >= 7);
+      el("s-body").classList.toggle("show", step >= 8);
+      el("s-status").classList.toggle("now", step === 6 || error);
+      el("s-headers").classList.toggle("now", step === 7);
+      el("s-body").classList.toggle("now", step === 8 || step === 9);
+      el("response").classList.toggle("error", error);
+      el("status").innerHTML = error ? "<span class='bad'>400 Bad Request</span>" : "<span class='ok'>200 OK</span>";
+      el("body").innerHTML = error ? bodyHtml(badBody, false) : bodyHtml(goodBody, step >= 8);
+      el("source").textContent = live ? "Live data, fetched just now" : "Real response saved Nov 16";
+      el("source").classList.toggle("show", step >= 8);
+      if (step >= 8) {
+        const mark = el("body").querySelector(".mark");
+        if (mark) el("body").scrollTop = mark.offsetTop - el("body").offsetTop - 40;
+      }
+
+      // Envelope trips
+      if (step === 5) sendEnvelope("right");
+      else if (step === 6) sendEnvelope("left");
+      else el("envelope").style.opacity = 0;
+
+      el("caption").innerHTML = steps[step];
+      el("count").textContent = (step + 1) + " / " + steps.length;
+      el("back").disabled = step === 0;
+      el("next").disabled = step === steps.length - 1;
+    }
+
+    el("next").addEventListener("click", () => { if (step < steps.length - 1) { step++; show(); } });
+    el("back").addEventListener("click", () => { if (step > 0) { step--; show(); } });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") el("next").click();
+      if (e.key === "ArrowLeft") el("back").click();
+    });
+
+    // Try for live weather; keep the saved response if it fails
+    fetch(goodUrl)
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (data && data.current) {
+          goodBody = data;
+          live = true;
+          show();
+        }
+      })
+      .catch(() => {});
+
+    show();
+  </script>
+</body>
+</html>
